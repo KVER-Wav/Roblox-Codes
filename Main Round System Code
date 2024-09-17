@@ -1,0 +1,210 @@
+local Players = game:GetService("Players")
+local Teams = game:GetService("Teams")
+
+local taggers = game.Teams["Red Team"]
+local runners = game.Teams["Blue Team"]
+local lobby = game.Teams["Lobby"]
+
+local abilitiesChoiceTime = 8
+local roundTime = 5 
+local intermissionTime = 3
+
+local inRound = game.ReplicatedStorage.InRound
+local status = game:GetService("ReplicatedStorage").Status
+
+local CS = game:GetService("CollectionService")
+
+local MapsRemote = game:GetService("ReplicatedStorage").Remotes.MapRandom
+
+local BlueSpawn = {}
+local RedSpawn = {}
+
+local function toMin(Seconds)
+	
+	local function Format(Int)
+		return string.format("%02i", Int)
+	end
+
+
+	local Minutes = (Seconds - Seconds%60)/60
+	Seconds = Seconds - Minutes*60
+	local Hours = (Minutes - Minutes%60)/60
+	Minutes = Minutes - Hours*60
+	return Format(Minutes)..":"..Format(Seconds)
+	
+end
+
+
+local function waitForPlayers()
+	status.Value = "Waiting for players..."
+	
+	repeat
+		
+		task.wait(.5)
+		
+	until #Players:GetPlayers() >= 1
+	
+	
+end
+
+
+--inRound.Changed:Connect(function()
+--	if inRound.Value == true then	
+--	else
+--		for i,v in Players:GetPlayers() do
+--			v.Team = lobby
+--		end
+--	end	
+--end)
+
+
+
+
+local function PreRound()
+	for i = intermissionTime, 0, -1 do
+		status.Value = "Game Starts In: "..i.."s"
+		wait(1)
+	end
+	
+	
+	
+	inRound = false
+	for i,plr in Players:GetPlayers() do
+		plr.PlayerGui.RoundSystem.MapChoice.Container.Visible = true
+		plr.PlayerGui.RoundSystem.MapChoice.Container.Blur.Visible = true
+	end
+	
+
+		
+	status.Value = "Choosing a map: "
+			
+
+	local maps = game:GetService("ReplicatedStorage").Maps:GetChildren()
+	local chosenmap = nil
+	
+	for i = 0, 8, 1 do
+		local random = math.random(1, #maps)
+		chosenmap = maps[random]
+		MapsRemote:FireAllClients(maps[random], i)
+		print(i)
+		wait(i/10)
+	end
+	
+	wait(1)
+
+	local clone = chosenmap:Clone()
+	clone.Parent = workspace
+	BlueSpawn = clone.BlueSpawns:GetChildren()
+	RedSpawn = clone.RedSpawns:GetChildren()
+	
+	for i,plr in Players:GetPlayers() do
+		plr.PlayerGui.RoundSystem.MapChoice.Container.Visible = false
+		plr.PlayerGui.RoundSystem.MapChoice.Container.Blur.Visible = false
+	end
+	
+	
+	
+
+	
+	
+	
+	for i,plr in Players:GetPlayers() do
+		plr.PlayerGui.RoundSystem.AbilityChoice.Container.Visible = true
+		plr.PlayerGui.RoundSystem.AbilityChoice.Container.Blur.Visible = true
+	end
+	for i = abilitiesChoiceTime, 0, -1 do
+		status.Value = "Choose your abilities: "..i.."s"
+		wait(1)
+	end
+	for i,plr in Players:GetPlayers() do
+		plr.PlayerGui.RoundSystem.AbilityChoice.Container.Visible = false
+		plr.PlayerGui.RoundSystem.AbilityChoice.Container.Blur.Visible = false
+	end
+	
+end
+
+
+local function endRound()
+	for i = intermissionTime, 0, -1 do
+		status.Value = "Round has ended: "..i.."s"
+		wait(1)
+	end
+	
+	
+end
+
+local random = math.random(1,2)
+
+local function startRound(round)
+	
+	for i,v in Players:GetPlayers() do
+		if v.Team == lobby then
+			if CS:HasTag(v.Character, "Team A") then
+				if random == 1 then 
+					v.Team = taggers
+				else
+					v.Team = runners
+				end
+			
+			elseif CS:HasTag(v.Character, "Team B") then
+				if random == 2 then 
+					v.Team = taggers
+				else
+					v.Team = runners
+				end
+			end
+			
+		elseif v.Team == runners then
+			v.Team = taggers
+		elseif v.Team == taggers then
+			v.Team = runners
+		end
+	end
+	
+	for i,v in Players:GetPlayers() do
+		local char = v.Character or v.CharacterAdded:Wait()
+		local root = char:WaitForChild("HumanoidRootPart")
+		root.Anchored = true
+		local RandomSpawn = math.random(1,4)
+		if v.Team == runners then
+			root.CFrame = BlueSpawn[RandomSpawn].CFrame + Vector3.new(0,5,0)
+		elseif v.Team == taggers then
+			root.CFrame = RedSpawn[RandomSpawn].CFrame + Vector3.new(0,5,0)
+		end
+	end
+	
+	
+	for i = 6, 0, -1 do
+		status.Value = "Intermission: "..toMin(i)
+		wait(1)
+	end	
+	
+	for i,v in Players:GetPlayers() do
+		local char = v.Character or v.CharacterAdded:Wait()
+		local root = char:WaitForChild("HumanoidRootPart")
+		root.Anchored = false
+	end
+	
+	
+	for i = roundTime, 0, -1 do
+		status.Value = "Game in progress: "..toMin(i)
+		wait(1)
+	end
+	
+	endRound()	
+end
+
+
+
+waitForPlayers()
+PreRound()
+
+
+startRound(1)
+
+startRound(2)
+
+startRound(3)
+
+
+
